@@ -2,7 +2,7 @@
 # Automatic certs use the Cloudflare DNS challenge.
 # THIS FILE IS AUTO-GENERATED - See Caddyfile.template and init.sh
 
-{{SITE_ADDRESS}} {
+{{SITE_ADDRESSES}} {
   # OAuth2 authentication via Azure AD B2C
   route {
     # Expose oauth2-proxy's own endpoints (sign in, callback, logout)
@@ -32,7 +32,7 @@
       header_down -Www-Authenticate
     }
   }
-  
+
   # Logs
   log {
     output stdout

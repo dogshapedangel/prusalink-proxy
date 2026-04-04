@@ -12,8 +12,10 @@ services:
       - ./init.sh:/etc/caddy/init.sh:ro
       - caddy_data:/data
       - caddy_config:/config
+    env_file:
+      - ./.env
     environment:
-      DOMAIN: ${DOMAIN:-example.com}
+      DOMAIN: ${DOMAIN:-}
       ACME_EMAIL: ${ACME_EMAIL:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
     entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
@@ -29,10 +31,13 @@ services:
     build:
       context: ./digest-proxy
     container_name: prusalink-digest-proxy
+    env_file:
+      - ./.env
     environment:
-      PRUSALINK_URL: ${PRUSALINK_URL:-http://10.69.0.160/}
-      PRUSALINK_USERNAME: ${PRUSALINK_USERNAME:-maker}
-      PRUSALINK_PASSWORD: ${PRUSALINK_PASSWORD:-change_me}
+      # Legacy single-printer fallback; omit these when using PRINTER_IDS + PRINTER_<ID>_* entries.
+      PRUSALINK_URL: ${PRUSALINK_URL:-}
+      PRUSALINK_USERNAME: ${PRUSALINK_USERNAME:-}
+      PRUSALINK_PASSWORD: ${PRUSALINK_PASSWORD:-}
       DIGEST_PROXY_PORT: 8080
     networks:
       - prusalink-network
@@ -49,6 +54,8 @@ services:
   oauth2-proxy:
     image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
     container_name: oauth2-proxy
+    env_file:
+      - ./.env
     environment:
       # Azure AD B2C OIDC Configuration
       # Azure B2C custom policies expose a metadata document that returns an issuer,
@@ -64,30 +71,33 @@ services:
       OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL: "true"
       OAUTH2_PROXY_CLIENT_ID: ${AZURE_B2C_CLIENT_ID}
       OAUTH2_PROXY_CLIENT_SECRET: ${AZURE_B2C_CLIENT_SECRET}
-      OAUTH2_PROXY_REDIRECT_URL: ${OAUTH2_PROXY_REDIRECT_URL:-https://${DOMAIN:-printers.example.com}/oauth2/callback}
+      # Leave redirect URL unset by default so oauth2-proxy derives the full
+      # https://<current-host>/oauth2/callback URL from the forwarded request.
       OAUTH2_PROXY_SCOPE: ${OAUTH2_PROXY_SCOPE:-openid profile email offline_access}
       OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
       OAUTH2_PROXY_OIDC_EMAIL_CLAIM: ${AZURE_B2C_EMAIL_CLAIM:-email}
-      
+
       # Session & Cookie
       OAUTH2_PROXY_COOKIE_SECRET: ${COOKIE_SECRET}
       OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy
       OAUTH2_PROXY_COOKIE_HTTPONLY: "true"
       OAUTH2_PROXY_COOKIE_SECURE: ${OAUTH2_PROXY_COOKIE_SECURE:-true}
       OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+      OAUTH2_PROXY_COOKIE_DOMAINS: ${OAUTH2_PROXY_COOKIE_DOMAINS:-}
       OAUTH2_PROXY_COOKIE_EXPIRE: "168h"
       OAUTH2_PROXY_COOKIE_REFRESH: "24h"
       OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_WHITELIST_DOMAINS: ${OAUTH2_PROXY_WHITELIST_DOMAINS:-}
       OAUTH2_PROXY_SESSION_STORE_TYPE: redis
       OAUTH2_PROXY_REDIS_CONNECTION_URL: redis://redis:6379/0
-      
+
       # Security
       OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
       OAUTH2_PROXY_REVERSE_PROXY: "true"
       OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
       OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER: "false"
       OAUTH2_PROXY_PASS_USER_HEADERS: "true"
-      
+
       # Logging
       OAUTH2_PROXY_STANDARD_LOGGING: "true"
       OAUTH2_PROXY_AUTH_LOGGING: "true"
