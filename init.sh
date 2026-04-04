@@ -22,8 +22,6 @@ GLOBAL_OPTIONS_FILE=$(mktemp)
 {
     echo "{"
     echo "  email ${ACME_EMAIL}"
-    # Fronting reverse proxies sometimes connect to this container by IP
-    # and omit SNI; make Caddy fall back to the public hostname certificate.
     echo "  default_sni ${DOMAIN_VALUE}"
     echo "  acme_dns cloudflare {env.CLOUDFLARE_API_TOKEN}"
     echo "}"
