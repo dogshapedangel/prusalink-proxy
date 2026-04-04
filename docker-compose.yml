@@ -1,0 +1,109 @@
+
+
+services:
+  caddy:
+    image: ghcr.io/caddy-dns/cloudflare:latest
+    container_name: caddy-reverse-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.template:/etc/caddy/Caddyfile.template:ro
+      - ./init.sh:/etc/caddy/init.sh:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      DOMAIN: ${DOMAIN:-example.com}
+      CADDY_DEV_MODE: ${CADDY_DEV_MODE:-false}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      PRUSALINK_URL: ${PRUSALINK_URL:-http://10.69.0.160/}
+      PRUSALINK_USERNAME: ${PRUSALINK_USERNAME:-maker}
+      PRUSALINK_PASSWORD: ${PRUSALINK_PASSWORD:-change_me}
+    entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
+    depends_on:
+      - prusalink-digest-proxy
+      - oauth2-proxy
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  prusalink-digest-proxy:
+    build:
+      context: ./digest-proxy
+    container_name: prusalink-digest-proxy
+    environment:
+      PRUSALINK_URL: ${PRUSALINK_URL:-http://10.69.0.160/}
+      PRUSALINK_USERNAME: ${PRUSALINK_USERNAME:-maker}
+      PRUSALINK_PASSWORD: ${PRUSALINK_PASSWORD:-change_me}
+      DIGEST_PROXY_PORT: 8080
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: oauth2-proxy-redis
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  oauth2-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    container_name: oauth2-proxy
+    environment:
+      # Azure AD B2C OIDC Configuration
+      # Azure B2C custom policies expose a metadata document that returns an issuer,
+      # but the issuer URL itself is not a discovery endpoint. Skip discovery and
+      # point oauth2-proxy at the concrete authorize/token/JWKS URLs.
+      OAUTH2_PROXY_PROVIDER: oidc
+      OAUTH2_PROXY_PROVIDER_DISPLAY_NAME: Azure AD B2C
+      OAUTH2_PROXY_SKIP_OIDC_DISCOVERY: "true"
+      OAUTH2_PROXY_OIDC_ISSUER_URL: ${AZURE_B2C_OIDC_ISSUER_URL}
+      OAUTH2_PROXY_LOGIN_URL: ${AZURE_B2C_LOGIN_URL}
+      OAUTH2_PROXY_REDEEM_URL: ${AZURE_B2C_REDEEM_URL}
+      OAUTH2_PROXY_OIDC_JWKS_URL: ${AZURE_B2C_JWKS_URL}
+      OAUTH2_PROXY_SKIP_CLAIMS_FROM_PROFILE_URL: "true"
+      OAUTH2_PROXY_CLIENT_ID: ${AZURE_B2C_CLIENT_ID}
+      OAUTH2_PROXY_CLIENT_SECRET: ${AZURE_B2C_CLIENT_SECRET}
+      OAUTH2_PROXY_REDIRECT_URL: ${OAUTH2_PROXY_REDIRECT_URL:-https://${DOMAIN:-printers.example.com}/oauth2/callback}
+      OAUTH2_PROXY_SCOPE: ${OAUTH2_PROXY_SCOPE:-openid profile email offline_access}
+      OAUTH2_PROXY_CODE_CHALLENGE_METHOD: S256
+      OAUTH2_PROXY_OIDC_EMAIL_CLAIM: ${AZURE_B2C_EMAIL_CLAIM:-email}
+      
+      # Session & Cookie
+      OAUTH2_PROXY_COOKIE_SECRET: ${COOKIE_SECRET}
+      OAUTH2_PROXY_COOKIE_NAME: _oauth2_proxy
+      OAUTH2_PROXY_COOKIE_HTTPONLY: "true"
+      OAUTH2_PROXY_COOKIE_SECURE: ${OAUTH2_PROXY_COOKIE_SECURE:-true}
+      OAUTH2_PROXY_COOKIE_SAMESITE: "lax"
+      OAUTH2_PROXY_COOKIE_EXPIRE: "168h"
+      OAUTH2_PROXY_COOKIE_REFRESH: "24h"
+      OAUTH2_PROXY_EMAIL_DOMAINS: "*"
+      OAUTH2_PROXY_SESSION_STORE_TYPE: redis
+      OAUTH2_PROXY_REDIS_CONNECTION_URL: redis://redis:6379/0
+      
+      # Security
+      OAUTH2_PROXY_HTTP_ADDRESS: 0.0.0.0:4180
+      OAUTH2_PROXY_REVERSE_PROXY: "true"
+      OAUTH2_PROXY_SET_XAUTHREQUEST: "true"
+      OAUTH2_PROXY_PASS_AUTHORIZATION_HEADER: "false"
+      OAUTH2_PROXY_PASS_USER_HEADERS: "true"
+      
+      # Logging
+      OAUTH2_PROXY_STANDARD_LOGGING: "true"
+      OAUTH2_PROXY_AUTH_LOGGING: "true"
+    depends_on:
+      - redis
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+networks:
+  prusalink-network:
+    driver: bridge

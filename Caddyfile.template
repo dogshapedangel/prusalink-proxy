@@ -1,0 +1,48 @@
+# Caddy configuration for PrusaLink with Azure AD B2C OIDC
+# Automatic certs use Cloudflare DNS challenge when CADDY_DEV_MODE=false.
+# THIS FILE IS AUTO-GENERATED - See Caddyfile.template and init.sh
+
+{{SITE_ADDRESS}} {
+  # OAuth2 authentication via Azure AD B2C
+  route {
+    # Expose oauth2-proxy's own endpoints (sign in, callback, logout)
+    handle /oauth2/* {
+      reverse_proxy oauth2-proxy:4180
+    }
+
+    # Send first-time browser requests into the login flow instead of surfacing a 401
+    @no_session {
+      not header_regexp Cookie (^|;\s*)_oauth2_proxy=
+    }
+    redir @no_session /oauth2/sign_in?rd={uri} 302
+
+    # Verify existing sessions with oauth2-proxy
+    forward_auth oauth2-proxy:4180 {
+      uri /oauth2/auth
+      copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups X-Forwarded-User X-Forwarded-Email
+    }
+
+    # Route all authenticated traffic through the digest bridge so PrusaLink's UI
+    # API does not trigger the browser credential prompt.
+    reverse_proxy prusalink-digest-proxy:8080 {
+      header_up X-Real-IP {http.request.remote.host}
+      header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+      header_up X-Forwarded-Host {host}
+      header_up X-Forwarded-Proto {scheme}
+      header_down -Www-Authenticate
+    }
+  }
+  
+  # Logs
+  log {
+    output stdout
+    format json
+  }
+}
+
+# Redirect HTTP to HTTPS
+# DEV_REDIRECT_START
+http:// {
+  redir https://{host}{uri} permanent
+}
+# DEV_REDIRECT_END

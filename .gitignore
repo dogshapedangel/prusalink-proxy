@@ -1,0 +1,26 @@
+# Environment and Secrets
+.env
+.env.local
+
+# Auto-generated files
+Caddyfile
+!Caddyfile.template
+
+# Docker volumes and data
+caddy_data/
+caddy_config/
+certs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
