@@ -1,5 +1,5 @@
 # Caddy configuration for PrusaLink with Azure AD B2C OIDC
-# Automatic certs use Cloudflare DNS challenge when CADDY_DEV_MODE=false.
+# Automatic certs use the Cloudflare DNS challenge.
 # THIS FILE IS AUTO-GENERATED - See Caddyfile.template and init.sh
 
 {{SITE_ADDRESS}} {
@@ -41,8 +41,6 @@
 }
 
 # Redirect HTTP to HTTPS
-# DEV_REDIRECT_START
 http:// {
   redir https://{host}{uri} permanent
 }
-# DEV_REDIRECT_END

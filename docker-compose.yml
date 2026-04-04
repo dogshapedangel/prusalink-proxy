@@ -14,7 +14,6 @@ services:
       - caddy_config:/config
     environment:
       DOMAIN: ${DOMAIN:-example.com}
-      CADDY_DEV_MODE: ${CADDY_DEV_MODE:-false}
       ACME_EMAIL: ${ACME_EMAIL:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
     entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
