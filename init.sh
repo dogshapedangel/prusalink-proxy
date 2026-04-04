@@ -2,18 +2,6 @@
 
 set -e
 
-# Check required environment variables
-if [ -z "$PRUSALINK_USERNAME" ] || [ -z "$PRUSALINK_PASSWORD" ] || [ -z "$PRUSALINK_URL" ]; then
-    echo "Error: Missing required environment variables"
-    echo "   Required: PRUSALINK_USERNAME, PRUSALINK_PASSWORD, PRUSALINK_URL"
-    exit 1
-fi
-
-# Generate Base64-encoded credentials
-CREDENTIALS="$PRUSALINK_USERNAME:$PRUSALINK_PASSWORD"
-BASE64_CREDS=$(printf '%s' "$CREDENTIALS" | base64 | tr -d '\n')
-PRUSALINK_UPSTREAM="${PRUSALINK_URL%/}"
-
 # Create Caddyfile from template
 cp /etc/caddy/Caddyfile.template /etc/caddy/Caddyfile
 
@@ -72,8 +60,6 @@ fi
 
 # Replace placeholders
 sed -i "s|{{SITE_ADDRESS}}|${SITE_ADDRESS}|g" /etc/caddy/Caddyfile
-sed -i "s|{{PRUSALINK_URL}}|${PRUSALINK_UPSTREAM}|g" /etc/caddy/Caddyfile
-sed -i "s|{{BASE64_CREDENTIALS}}|${BASE64_CREDS}|g" /etc/caddy/Caddyfile
 
 # Start Caddy with provided arguments
 exec caddy run --config /etc/caddy/Caddyfile "$@"

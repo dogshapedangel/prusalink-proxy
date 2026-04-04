@@ -17,9 +17,6 @@ services:
       CADDY_DEV_MODE: ${CADDY_DEV_MODE:-false}
       ACME_EMAIL: ${ACME_EMAIL:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
-      PRUSALINK_URL: ${PRUSALINK_URL:-http://10.69.0.160/}
-      PRUSALINK_USERNAME: ${PRUSALINK_USERNAME:-maker}
-      PRUSALINK_PASSWORD: ${PRUSALINK_PASSWORD:-change_me}
     entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
     depends_on:
       - prusalink-digest-proxy
@@ -29,6 +26,7 @@ services:
     restart: unless-stopped
 
   prusalink-digest-proxy:
+    # Satisfies PrusaLink's HTTP Digest auth so browsers never see the credential prompt.
     build:
       context: ./digest-proxy
     container_name: prusalink-digest-proxy
