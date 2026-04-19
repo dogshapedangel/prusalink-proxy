@@ -10,6 +10,7 @@ services:
     volumes:
       - ./Caddyfile.template:/etc/caddy/Caddyfile.template:ro
       - ./init.sh:/etc/caddy/init.sh:ro
+      - ./printers-index.html:/srv/printers/index.html:ro
       - caddy_data:/data
       - caddy_config:/config
     env_file:

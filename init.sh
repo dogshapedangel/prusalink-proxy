@@ -58,6 +58,9 @@ else
     exit 1
 fi
 
+# Always include the printer index host.
+append_domain "printers.psone.space"
+
 GLOBAL_OPTIONS_FILE=$(mktemp)
 
 {
