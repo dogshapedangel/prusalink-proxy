@@ -23,6 +23,7 @@ services:
     depends_on:
       - prusalink-digest-proxy
       - oauth2-proxy
+      - authz-ad
     networks:
       - prusalink-network
     restart: unless-stopped
@@ -104,6 +105,34 @@ services:
       OAUTH2_PROXY_AUTH_LOGGING: "true"
     depends_on:
       - redis
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  authz-ad:
+    build:
+      context: ./authz-ad
+    container_name: authz-ad
+    env_file:
+      - ./.env
+    environment:
+      AUTHZ_AD_LISTEN: 0.0.0.0:8081
+      AUTHZ_AD_ENFORCE: ${AUTHZ_AD_ENFORCE:-true}
+      AUTHZ_AD_HEADER_EMAIL: ${AUTHZ_AD_HEADER_EMAIL:-X-Auth-Request-Email}
+      AUTHZ_AD_HEADER_USER: ${AUTHZ_AD_HEADER_USER:-X-Auth-Request-User}
+      AUTHZ_AD_CACHE_TTL_SECONDS: ${AUTHZ_AD_CACHE_TTL_SECONDS:-300}
+      AUTHZ_AD_NEGATIVE_CACHE_TTL_SECONDS: ${AUTHZ_AD_NEGATIVE_CACHE_TTL_SECONDS:-60}
+      AUTHZ_AD_LDAP_URI: ${AUTHZ_AD_LDAP_URI}
+      AUTHZ_AD_BIND_DN: ${AUTHZ_AD_BIND_DN}
+      AUTHZ_AD_BIND_PASSWORD: ${AUTHZ_AD_BIND_PASSWORD}
+      AUTHZ_AD_BASE_DN: ${AUTHZ_AD_BASE_DN}
+      AUTHZ_AD_ALLOWED_GROUP_DN: ${AUTHZ_AD_ALLOWED_GROUP_DN}
+      AUTHZ_AD_IDENTITY_ATTRS: ${AUTHZ_AD_IDENTITY_ATTRS:-mail,userPrincipalName,sAMAccountName}
+      AUTHZ_AD_CONNECT_TIMEOUT_SECONDS: ${AUTHZ_AD_CONNECT_TIMEOUT_SECONDS:-2}
+      AUTHZ_AD_READ_TIMEOUT_SECONDS: ${AUTHZ_AD_READ_TIMEOUT_SECONDS:-2}
+      AUTHZ_AD_TLS_VALIDATE: ${AUTHZ_AD_TLS_VALIDATE:-true}
+      AUTHZ_AD_TLS_CA_CERT_FILE: ${AUTHZ_AD_TLS_CA_CERT_FILE:-}
+      AUTHZ_AD_LOG_LEVEL: ${AUTHZ_AD_LOG_LEVEL:-INFO}
     networks:
       - prusalink-network
     restart: unless-stopped

@@ -29,6 +29,13 @@
       copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups X-Forwarded-User X-Forwarded-Email
     }
 
+    # Authorize users against on-prem AD group membership.
+    # authz-ad returns 200 to allow, 403 to deny.
+    forward_auth authz-ad:8081 {
+      uri /authz
+      copy_headers X-Authz-Decision X-Authz-Reason
+    }
+
     # Route all authenticated traffic through the digest bridge so PrusaLink's UI
     # API does not trigger the browser credential prompt.
     reverse_proxy prusalink-digest-proxy:8080 {
