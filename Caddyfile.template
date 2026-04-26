@@ -21,11 +21,12 @@
       reverse_proxy oauth2-proxy:4180
     }
 
-    # Send first-time browser requests into the login flow instead of surfacing a 401
+    # Send first-time browser requests straight into the OIDC flow instead of
+    # showing oauth2-proxy's intermediary sign-in page.
     @no_session {
       not header_regexp Cookie (^|;\s*)_oauth2_proxy=
     }
-    redir @no_session /oauth2/sign_in?rd={uri} 302
+    redir @no_session /oauth2/start?rd={uri} 302
 
     # Verify existing sessions with oauth2-proxy
     forward_auth oauth2-proxy:4180 {
