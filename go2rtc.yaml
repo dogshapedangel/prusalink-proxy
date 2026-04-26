@@ -1,0 +1,14 @@
+api:
+  listen: 0.0.0.0:1984
+
+streams:
+  pink:
+    - rtsp://10.19.30.10/live
+  blue:
+    - rtsp://10.19.30.40/live
+  white:
+    - rtsp://10.19.30.56/live
+  purple:
+    - rtsp://10.19.30.55/live
+  orange:
+    - rtsp://10.19.30.54/live

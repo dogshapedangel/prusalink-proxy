@@ -16,237 +16,25 @@
     }
     li {
       display: inline-block;
-      margin: 8px;
-      vertical-align: top;
-      font-size: 1em;
+      margin: 6px;
+      font-size: 1.2em;
     }
     p {
       font-size: 1.5em;
-    }
-    h2 {
-      font-size: 1em;
-      color: #555;
-      margin: 16px 0 4px;
-    }
-
-    /* Card layout */
-    .printer-card {
-      display: flex;
-      flex-direction: column;
-      width: 320px;
-    }
-
-    /* Preview rectangle above the button */
-    .printer-preview {
-      display: flex;
-      height: 120px;
-      background: #111;
-      border-radius: 6px 6px 0 0;
-      overflow: hidden;
-      border: 1px solid #444;
-      border-bottom: none;
-    }
-
-    /* Left: camera stream */
-    .printer-stream {
-      flex: 0 0 55%;
-      background: #000;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      border-right: 1px solid #333;
-      position: relative;
-    }
-    .printer-stream img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-    }
-    .printer-stream .stream-unavailable {
-      color: #555;
-      font-size: 0.7em;
-      text-align: center;
-      padding: 4px;
-    }
-
-    /* Right: status panel */
-    .printer-info {
-      flex: 1;
-      padding: 8px 10px;
-      color: #ddd;
-      font-size: 0.72em;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 8px;
-      text-align: left;
-    }
-    .printer-info .info-row {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-    .printer-info .info-label {
-      color: #888;
-      font-size: 0.85em;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-    .printer-info .info-value {
-      color: #fff;
-      font-size: 1.1em;
-    }
-
-    /* Link button below preview */
-    .printer-card a {
-      display: block;
-      text-decoration: none;
-    }
-    .printer-card a span {
-      display: block;
-      padding: 5px 6px;
-      border-radius: 0 0 4px 4px;
-      font-size: 1.1em;
-      border: 1px solid #444;
-      border-top: none;
-    }
-    .printer-card a:hover span {
-      filter: brightness(1.15);
     }
   </style>
 </head>
 <body>
   <h1>PS:One 3D Printer Dashboard</h1>
   <p>Select a printer:</p>
-
-  <h2>Core One L</h2>
   <ul>
-    <li>
-      <div class="printer-card">
-        <div class="printer-preview">
-          <!-- RTSP stream proxied to MJPEG via /camera-stream/<name> on the printer subdomain -->
-          <div class="printer-stream">
-            <img src="https://purple.psone.space/camera-stream"
-                 alt="Camera unavailable"
-                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stream-unavailable',textContent:'Stream unavailable'}))">
-          </div>
-          <div class="printer-info">
-            <div class="info-row">
-              <span class="info-label">Status</span>
-              <span class="info-value" id="purple-status">—</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time Remaining</span>
-              <span class="info-value" id="purple-remaining">—</span>
-            </div>
-          </div>
-        </div>
-        <a href="https://purple.psone.space">
-          <span style="color: rgb(245, 111, 245); background: black;">purple.psone.space (Core One L)</span>
-        </a>
-      </div>
-    </li>
-    <li>
-      <div class="printer-card">
-        <div class="printer-preview">
-          <div class="printer-stream">
-            <img src="https://orange.psone.space/camera-stream"
-                 alt="Camera unavailable"
-                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stream-unavailable',textContent:'Stream unavailable'}))">
-          </div>
-          <div class="printer-info">
-            <div class="info-row">
-              <span class="info-label">Status</span>
-              <span class="info-value" id="orange-status">—</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time Remaining</span>
-              <span class="info-value" id="orange-remaining">—</span>
-            </div>
-          </div>
-        </div>
-        <a href="https://orange.psone.space">
-          <span style="color: orange; background: black;">orange.psone.space (Core One L)</span>
-        </a>
-      </div>
-    </li>
+    <li><a href="https://purple.psone.space"><span style="color: rgb(245, 111, 245); background: black; padding: 2px 6px; border-radius: 4px;">purple.psone.space (Core One+ L)</span></a></li>
+    <li><a href="https://orange.psone.space"><span style="color: orange; background: black; padding: 2px 6px; border-radius: 4px;">orange.psone.space (Core One+ L)</span></a></li>
   </ul>
-
-  <h2>Core One+</h2>
   <ul>
-    <li>
-      <div class="printer-card">
-        <div class="printer-preview">
-          <div class="printer-stream">
-            <img src="https://pink.psone.space/camera-stream"
-                 alt="Camera unavailable"
-                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stream-unavailable',textContent:'Stream unavailable'}))">
-          </div>
-          <div class="printer-info">
-            <div class="info-row">
-              <span class="info-label">Status</span>
-              <span class="info-value" id="pink-status">—</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time Remaining</span>
-              <span class="info-value" id="pink-remaining">—</span>
-            </div>
-          </div>
-        </div>
-        <a href="https://pink.psone.space">
-          <span style="color: black; background: pink;">pink.psone.space (Core One)</span>
-        </a>
-      </div>
-    </li>
-    <li>
-      <div class="printer-card">
-        <div class="printer-preview">
-          <div class="printer-stream">
-            <img src="https://blue.psone.space/camera-stream"
-                 alt="Camera unavailable"
-                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stream-unavailable',textContent:'Stream unavailable'}))">
-          </div>
-          <div class="printer-info">
-            <div class="info-row">
-              <span class="info-label">Status</span>
-              <span class="info-value" id="blue-status">—</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time Remaining</span>
-              <span class="info-value" id="blue-remaining">—</span>
-            </div>
-          </div>
-        </div>
-        <a href="https://blue.psone.space">
-          <span style="color: black; background: lightblue;">blue.psone.space (Core One)</span>
-        </a>
-      </div>
-    </li>
-    <li>
-      <div class="printer-card">
-        <div class="printer-preview">
-          <div class="printer-stream">
-            <img src="https://white.psone.space/camera-stream"
-                 alt="Camera unavailable"
-                 onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'stream-unavailable',textContent:'Stream unavailable'}))">
-          </div>
-          <div class="printer-info">
-            <div class="info-row">
-              <span class="info-label">Status</span>
-              <span class="info-value" id="white-status">—</span>
-            </div>
-            <div class="info-row">
-              <span class="info-label">Time Remaining</span>
-              <span class="info-value" id="white-remaining">—</span>
-            </div>
-          </div>
-        </div>
-        <a href="https://white.psone.space">
-          <span style="color: black; background: white;">white.psone.space (Core One)</span>
-        </a>
-      </div>
-    </li>
+    <li><a href="https://pink.psone.space"><span style="color: black; background: pink; padding: 2px 6px; border-radius: 4px;">pink.psone.space (Core One+)</span></a></li>
+    <li><a href="https://blue.psone.space"><span style="color: black; background: lightblue; padding: 2px 6px; border-radius: 4px;">blue.psone.space (Core One+)</span></a></li>
+    <li><a href="https://white.psone.space"><span style="color: black; background: white; padding: 2px 6px; border-radius: 4px;">white.psone.space (Core One+)</span></a></li>
   </ul>
 </body>
 </html>

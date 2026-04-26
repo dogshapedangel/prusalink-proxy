@@ -4,7 +4,11 @@
 
 {{SITE_ADDRESSES}} {
   # Public landing page with links to individual printer hosts.
-  @printers_index host printers.psone.space
+  # Camera streams are auth-gated, so exclude /camera-stream/* from this block.
+  @printers_index {
+    host printers.psone.space
+    not path /camera-stream/*
+  }
   handle @printers_index {
     root * /srv/printers
     file_server
@@ -36,14 +40,33 @@
       copy_headers X-Authz-Decision X-Authz-Reason
     }
 
+    # Camera streams served same-origin from printers.psone.space/camera-stream/<name>
+    # so the browser's OpaqueResponseBlocking policy is not triggered.
+    @camera_by_path {
+      host printers.psone.space
+      path_regexp cam ^/camera-stream/([^/]+)$
+    }
+    handle @camera_by_path {
+      rewrite * /api/stream.mjpeg?src={re.cam.1}
+      reverse_proxy go2rtc:1984
+    }
+
+    # Fallback: camera stream requested directly on a printer subdomain.
+    handle /camera-stream {
+      rewrite * /api/stream.mjpeg?src={labels.0}
+      reverse_proxy go2rtc:1984
+    }
+
     # Route all authenticated traffic through the digest bridge so PrusaLink's UI
     # API does not trigger the browser credential prompt.
-    reverse_proxy prusalink-digest-proxy:8080 {
-      header_up X-Real-IP {http.request.remote.host}
-      header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
-      header_up X-Forwarded-Host {host}
-      header_up X-Forwarded-Proto {scheme}
-      header_down -Www-Authenticate
+    handle {
+      reverse_proxy prusalink-digest-proxy:8080 {
+        header_up X-Real-IP {http.request.remote.host}
+        header_up X-Forwarded-For {http.request.header.X-Forwarded-For}
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+        header_down -Www-Authenticate
+      }
     }
   }
 

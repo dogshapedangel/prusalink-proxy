@@ -22,8 +22,18 @@ services:
     entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
     depends_on:
       - prusalink-digest-proxy
+      - go2rtc
       - oauth2-proxy
       - authz-ad
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  go2rtc:
+    image: alexxit/go2rtc:latest
+    container_name: go2rtc
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
     networks:
       - prusalink-network
     restart: unless-stopped
