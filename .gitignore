@@ -2,6 +2,7 @@
 .env
 .env.local
 .env.bak
+*.bak
 
 # Auto-generated files
 Caddyfile

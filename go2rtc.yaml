@@ -3,7 +3,7 @@ api:
 
 streams:
   pink:
-    - rtsp://10.19.30.10/live
+    - rtsp://10.19.30.39/live
   blue:
     - rtsp://10.19.30.40/live
   white:
