@@ -8,7 +8,8 @@ from urllib.parse import urlsplit
 
 import requests
 from requests.auth import HTTPDigestAuth
-from flask import Flask, render_template_string
+import yaml
+from flask import Flask, Response, abort, render_template_string, stream_with_context
 
 logging.basicConfig(
     level=os.environ.get("STATUS_APP_LOG_LEVEL", "INFO"),
@@ -17,6 +18,7 @@ logging.basicConfig(
 
 PORT = int(os.environ.get("STATUS_APP_PORT", "8888"))
 TIMEOUT = float(os.environ.get("STATUS_APP_TIMEOUT", "10"))
+CAMERA_FEEDS_ENABLED = os.environ.get("STATUS_APP_CAMERA_FEEDS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
 
 session = requests.Session()
 
@@ -44,6 +46,7 @@ class PrinterStatus:
     text_color: str = "white"
     bg_color: str = "black"
     model_name: str = ""
+    camera_stream: Optional[str] = None
 
 
 def _normalize_printer_id(value: str) -> str:
@@ -127,6 +130,8 @@ def load_printer_configs() -> dict[str, PrinterConfig]:
 
 
 PRINTERS = load_printer_configs()
+GO2RTC_BASE_URL = os.environ.get("GO2RTC_BASE_URL", "http://go2rtc:1984").rstrip("/")
+GO2RTC_CONFIG_PATH = os.environ.get("GO2RTC_CONFIG_PATH", "/config/go2rtc.yaml")
 
 # Color scheme and order for each printer - matching the original design
 PRINTER_ORDER = [
@@ -144,6 +149,48 @@ PRINTER_COLORS = {
     "blue.psone.space": {"text": "black", "bg": "lightblue", "name": "Core One+"},
     "white.psone.space": {"text": "black", "bg": "white", "name": "Core One+"},
 }
+
+
+def load_go2rtc_stream_names(path: str) -> set[str]:
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f) or {}
+    except FileNotFoundError:
+        logging.warning("go2rtc config file not found at %s", path)
+        return set()
+    except OSError as exc:
+        logging.warning("Failed to read go2rtc config %s: %s", path, exc)
+        return set()
+    except yaml.YAMLError as exc:
+        logging.warning("Invalid go2rtc YAML in %s: %s", path, exc)
+        return set()
+
+    streams = config.get("streams", {})
+    if not isinstance(streams, dict):
+        return set()
+
+    return {str(name).strip() for name in streams.keys() if str(name).strip()}
+
+
+def build_domain_to_camera_map(printers: dict[str, PrinterConfig], stream_names: set[str]) -> dict[str, str]:
+    mapping: dict[str, str] = {}
+    stream_lookup = {name.lower(): name for name in stream_names}
+
+    for domain, printer in printers.items():
+        candidates = [
+            printer.name.strip().lower(),
+            domain.split(".", 1)[0].strip().lower(),
+        ]
+        for candidate in candidates:
+            if candidate in stream_lookup:
+                mapping[domain] = stream_lookup[candidate]
+                break
+
+    return mapping
+
+
+GO2RTC_STREAMS = load_go2rtc_stream_names(GO2RTC_CONFIG_PATH)
+DOMAIN_TO_CAMERA_STREAM = build_domain_to_camera_map(PRINTERS, GO2RTC_STREAMS)
 
 
 def format_time(seconds: Optional[int]) -> str:
@@ -189,7 +236,8 @@ def fetch_printer_status(printer: PrinterConfig) -> PrinterStatus:
             progress=progress,
             text_color=colors["text"],
             bg_color=colors["bg"],
-                    model_name=colors.get("name", ""),
+            model_name=colors.get("name", ""),
+            camera_stream=DOMAIN_TO_CAMERA_STREAM.get(printer.domain),
         )
     except requests.RequestException as e:
         logging.warning(f"Failed to fetch status for {printer.name}: {e}")
@@ -198,7 +246,8 @@ def fetch_printer_status(printer: PrinterConfig) -> PrinterStatus:
             domain=printer.domain,
             status="OFFLINE",
             error=str(e),
-                        model_name=colors.get("name", ""),
+            model_name=colors.get("name", ""),
+            camera_stream=DOMAIN_TO_CAMERA_STREAM.get(printer.domain),
             text_color=colors["text"],
             bg_color=colors["bg"],
         )
@@ -274,6 +323,28 @@ HTML_TEMPLATE = """<!doctype html>
     .printer-link:hover span {
       opacity: 0.8;
     }
+        .camera-button {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 6px 10px;
+            font-size: 0.8em;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-decoration: none;
+            border-radius: 4px;
+            border: 1px solid rgba(0, 0, 0, 0.4);
+            color: #111;
+            background: #f7f7f7;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        .camera-button:hover {
+            filter: brightness(0.95);
+        }
+        .camera-button.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
   </style>
 </head>
 <body>
@@ -292,6 +363,11 @@ HTML_TEMPLATE = """<!doctype html>
       {% endif %}
     </div>
         <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
+            {% if camera_feeds_enabled and printer_status.camera_stream %}
+                <a href="/camera/{{ printer_status.camera_stream }}" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+            {% elif camera_feeds_enabled %}
+                <span class="camera-button disabled">CAMERA FEED</span>
+                {% endif %}
   </div>
   {% endfor %}
     </div>
@@ -308,9 +384,51 @@ HTML_TEMPLATE = """<!doctype html>
             {% endif %}
         </div>
                 <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
+                                {% if camera_feeds_enabled and printer_status.camera_stream %}
+                                <a href="/camera/{{ printer_status.camera_stream }}" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+                                {% elif camera_feeds_enabled %}
+                                <span class="camera-button disabled">CAMERA FEED</span>
+                                {% endif %}
     </div>
     {% endfor %}
     </div>
+</body>
+</html>
+"""
+
+
+CAMERA_TEMPLATE = """<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Camera Feed - {{ stream_name }}</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #111;
+            color: #eee;
+            font-family: 'Courier New', Courier, monospace;
+            text-align: center;
+        }
+        h1 {
+            font-size: 1.2rem;
+            margin: 16px 8px;
+        }
+        .frame {
+            width: min(96vw, 1200px);
+            max-height: calc(100vh - 70px);
+            border: 2px solid #444;
+            border-radius: 6px;
+            object-fit: contain;
+            background: #000;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ stream_name }} camera</h1>
+    <img class="frame" src="/camera/{{ stream_name }}/stream.mjpeg" alt="Camera feed for {{ stream_name }}">
 </body>
 </html>
 """
@@ -332,8 +450,43 @@ def index():
         HTML_TEMPLATE,
         top_printer_statuses=top_printer_statuses,
         bottom_printer_statuses=bottom_printer_statuses,
+        camera_feeds_enabled=CAMERA_FEEDS_ENABLED,
         time_format=format_time,
     )
+
+
+@app.route("/camera/<stream_name>")
+def camera_view(stream_name: str):
+    if stream_name not in GO2RTC_STREAMS:
+        abort(404)
+    return render_template_string(CAMERA_TEMPLATE, stream_name=stream_name)
+
+
+@app.route("/camera/<stream_name>/stream.mjpeg")
+def camera_stream(stream_name: str):
+    if stream_name not in GO2RTC_STREAMS:
+        abort(404)
+
+    upstream_url = f"{GO2RTC_BASE_URL}/api/stream.mjpeg?src={stream_name}"
+
+    try:
+        upstream = session.get(upstream_url, timeout=TIMEOUT, stream=True)
+        upstream.raise_for_status()
+    except requests.RequestException as exc:
+        logging.warning("Camera stream proxy failed for %s: %s", stream_name, exc)
+        return "Camera feed unavailable", 502
+
+    content_type = upstream.headers.get("Content-Type", "multipart/x-mixed-replace; boundary=frame")
+
+    def generate():
+        try:
+            for chunk in upstream.iter_content(chunk_size=16 * 1024):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    return Response(stream_with_context(generate()), content_type=content_type)
 
 
 @app.errorhandler(500)

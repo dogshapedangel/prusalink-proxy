@@ -43,6 +43,8 @@ services:
     build:
       context: ./printers-status
     container_name: printers-status
+    volumes:
+      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
     env_file:
       - ./.env
     environment:
