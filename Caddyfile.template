@@ -3,15 +3,14 @@
 # THIS FILE IS AUTO-GENERATED - See Caddyfile.template and init.sh
 
 {{SITE_ADDRESSES}} {
-  # Public landing page with links to individual printer hosts.
+  # Public landing page with links to individual printer hosts and live status.
   # Camera streams are auth-gated, so exclude /camera-stream/* from this block.
   @printers_index {
     host printers.psone.space
     not path /camera-stream/*
   }
   handle @printers_index {
-    root * /srv/printers
-    file_server
+    reverse_proxy printers-status:8888
   }
 
   # OAuth2 authentication via Azure AD B2C

@@ -10,7 +10,6 @@ services:
     volumes:
       - ./Caddyfile.template:/etc/caddy/Caddyfile.template:ro
       - ./init.sh:/etc/caddy/init.sh:ro
-      - ./printers-index.html:/srv/printers/index.html:ro
       - caddy_data:/data
       - caddy_config:/config
     env_file:
@@ -22,6 +21,7 @@ services:
     entrypoint: ["/bin/sh", "/etc/caddy/init.sh"]
     depends_on:
       - prusalink-digest-proxy
+      - printers-status
       - go2rtc
       - oauth2-proxy
       - authz-ad
@@ -34,6 +34,21 @@ services:
     container_name: go2rtc
     volumes:
       - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+    networks:
+      - prusalink-network
+    restart: unless-stopped
+
+  printers-status:
+    # Serves printer status dashboard with real-time status bars
+    build:
+      context: ./printers-status
+    container_name: printers-status
+    env_file:
+      - ./.env
+    environment:
+      STATUS_APP_PORT: 8888
+      STATUS_APP_LOG_LEVEL: INFO
+      STATUS_APP_TIMEOUT: 10
     networks:
       - prusalink-network
     restart: unless-stopped
