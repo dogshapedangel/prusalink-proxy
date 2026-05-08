@@ -297,9 +297,6 @@ HTML_TEMPLATE = """<!doctype html>
             box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
-        }
-        .status-bar.idle-status {
             justify-content: center;
     }
         .status-line {
@@ -353,7 +350,7 @@ HTML_TEMPLATE = """<!doctype html>
     <div class="printer-row">
     {% for printer_status in top_printer_statuses %}
   <div class="printer-item">
-        <div class="status-bar{% if printer_status.status == 'IDLE' %} idle-status{% endif %}" style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">
+        <div class="status-bar" style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">
       <div class="status-line">Status: {{ printer_status.status }}</div>
       {% if printer_status.progress is not none and printer_status.status == 'PRINTING' %}
       <div class="status-line">Progress: {{ "%.1f"|format(printer_status.progress) }}%</div>
@@ -374,7 +371,7 @@ HTML_TEMPLATE = """<!doctype html>
     <div class="printer-row">
     {% for printer_status in bottom_printer_statuses %}
     <div class="printer-item">
-        <div class="status-bar{% if printer_status.status == 'IDLE' %} idle-status{% endif %}" style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">
+        <div class="status-bar" style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">
             <div class="status-line">Status: {{ printer_status.status }}</div>
             {% if printer_status.progress is not none and printer_status.status == 'PRINTING' %}
             <div class="status-line">Progress: {{ "%.1f"|format(printer_status.progress) }}%</div>
