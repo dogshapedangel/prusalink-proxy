@@ -1,6 +1,17 @@
 api:
   listen: 0.0.0.0:1984
 
+webrtc:
+  listen: :8555
+  candidates:
+    - 10.10.2.66:8555
+  ice_servers:
+    - urls:
+        - turn:10.10.2.66:3478?transport=udp
+        - turn:10.10.2.66:3478?transport=tcp
+      username: printerturn
+      credential: 4zS4QfUzB8nNw2rT
+
 streams:
   pink:
     - rtsp://10.19.30.39/live

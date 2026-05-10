@@ -361,7 +361,7 @@ HTML_TEMPLATE = """<!doctype html>
     </div>
         <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
             {% if camera_feeds_enabled and printer_status.camera_stream %}
-                <a href="/camera/{{ printer_status.camera_stream }}" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+                <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
             {% elif camera_feeds_enabled %}
                 <span class="camera-button disabled">CAMERA FEED</span>
                 {% endif %}
@@ -382,7 +382,7 @@ HTML_TEMPLATE = """<!doctype html>
         </div>
                 <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
                                 {% if camera_feeds_enabled and printer_status.camera_stream %}
-                                <a href="/camera/{{ printer_status.camera_stream }}" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+                                <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
                                 {% elif camera_feeds_enabled %}
                                 <span class="camera-button disabled">CAMERA FEED</span>
                                 {% endif %}
@@ -421,11 +421,27 @@ CAMERA_TEMPLATE = """<!doctype html>
             object-fit: contain;
             background: #000;
         }
+        .status {
+            margin: 8px 0 16px;
+            color: #bbb;
+            font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
     <h1>{{ stream_name }} camera</h1>
-    <img class="frame" src="/camera/{{ stream_name }}/stream.mjpeg" alt="Camera feed for {{ stream_name }}">
+    <div class="status">Refreshing live frame every second</div>
+    <img id="camera-frame" class="frame" src="/camera/{{ stream_name }}/frame.jpeg" alt="Camera feed for {{ stream_name }}">
+    <script>
+        const frame = document.getElementById('camera-frame');
+        const baseUrl = '/camera/{{ stream_name }}/frame.jpeg';
+
+        function refreshFrame() {
+            frame.src = `${baseUrl}?t=${Date.now()}`;
+        }
+
+        setInterval(refreshFrame, 1000);
+    </script>
 </body>
 </html>
 """
@@ -484,6 +500,23 @@ def camera_stream(stream_name: str):
             upstream.close()
 
     return Response(stream_with_context(generate()), content_type=content_type)
+
+
+@app.route("/camera/<stream_name>/frame.jpeg")
+def camera_frame(stream_name: str):
+    if stream_name not in GO2RTC_STREAMS:
+        abort(404)
+
+    upstream_url = f"{GO2RTC_BASE_URL}/api/frame.jpeg?src={stream_name}"
+
+    try:
+        upstream = session.get(upstream_url, timeout=TIMEOUT)
+        upstream.raise_for_status()
+    except requests.RequestException as exc:
+        logging.warning("Camera frame proxy failed for %s: %s", stream_name, exc)
+        return "Camera feed unavailable", 502
+
+    return Response(upstream.content, content_type=upstream.headers.get("Content-Type", "image/jpeg"))
 
 
 @app.errorhandler(500)

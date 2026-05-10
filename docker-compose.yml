@@ -23,6 +23,7 @@ services:
       - prusalink-digest-proxy
       - printers-status
       - go2rtc
+      - turn
       - oauth2-proxy
       - authz-ad
     networks:
@@ -32,10 +33,31 @@ services:
   go2rtc:
     image: alexxit/go2rtc:latest
     container_name: go2rtc
+    ports:
+      - "8555:8555/tcp"
+      - "8555:8555/udp"
     volumes:
       - ./go2rtc.yaml:/config/go2rtc.yaml:ro
     networks:
       - prusalink-network
+    restart: unless-stopped
+
+  turn:
+    image: coturn/coturn:latest
+    container_name: coturn
+    network_mode: host
+    command:
+      - -n
+      - --log-file=stdout
+      - --fingerprint
+      - --lt-cred-mech
+      - --realm=${TURN_REALM:-printers.psone.space}
+      - --user=${TURN_USERNAME:-printerturn}:${TURN_PASSWORD:-change_me_turn_password}
+      - --listening-port=${TURN_PORT:-3478}
+      - --min-port=${TURN_MIN_PORT:-49160}
+      - --max-port=${TURN_MAX_PORT:-49200}
+      - --no-tls
+      - --no-dtls
     restart: unless-stopped
 
   printers-status:

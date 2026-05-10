@@ -4,10 +4,11 @@
 
 {{SITE_ADDRESSES}} {
   # Public landing page with links to individual printer hosts and live status.
-  # Camera streams are auth-gated, so exclude /camera-stream/* from this block.
+  # Camera pages are auth-gated, so exclude the proxied go2rtc subtree.
   @printers_index {
     host printers.psone.space
-    not path /camera-stream/*
+    not path /camera/*
+    not path /oauth2/*
   }
   handle @printers_index {
     reverse_proxy printers-status:8888
@@ -19,6 +20,10 @@
     handle /oauth2/* {
       reverse_proxy oauth2-proxy:4180
     }
+
+    # Optional: when camera OAuth is disabled, camera routes are injected here
+    # so they bypass the OAuth and AD authorization checks below.
+{{CAMERA_ROUTES_PREAUTH}}
 
     # Send first-time browser requests straight into the OIDC flow instead of
     # showing oauth2-proxy's intermediary sign-in page.
@@ -40,22 +45,9 @@
       copy_headers X-Authz-Decision X-Authz-Reason
     }
 
-    # Camera streams served same-origin from printers.psone.space/camera-stream/<name>
-    # so the browser's OpaqueResponseBlocking policy is not triggered.
-    @camera_by_path {
-      host printers.psone.space
-      path_regexp cam ^/camera-stream/([^/]+)$
-    }
-    handle @camera_by_path {
-      rewrite * /api/stream.mjpeg?src={re.cam.1}
-      reverse_proxy go2rtc:1984
-    }
-
-    # Fallback: camera stream requested directly on a printer subdomain.
-    handle /camera-stream {
-      rewrite * /api/stream.mjpeg?src={labels.0}
-      reverse_proxy go2rtc:1984
-    }
+    # Optional: when camera OAuth is enabled, camera routes are injected here
+    # so they require OAuth and AD authorization before proxying to go2rtc.
+{{CAMERA_ROUTES_POSTAUTH}}
 
     # Route all authenticated traffic through the digest bridge so PrusaLink's UI
     # API does not trigger the browser credential prompt.

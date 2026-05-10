@@ -61,6 +61,47 @@ fi
 # Always include the printer index host.
 append_domain "printers.psone.space"
 
+to_lower() {
+    printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
+CAMERA_FEEDS_REQUIRE_OAUTH_RAW=$(to_lower "${CAMERA_FEEDS_REQUIRE_OAUTH:-true}")
+case "$CAMERA_FEEDS_REQUIRE_OAUTH_RAW" in
+    1|true|yes|on)
+        CAMERA_FEEDS_REQUIRE_OAUTH_BOOL=true
+        ;;
+    0|false|no|off)
+        CAMERA_FEEDS_REQUIRE_OAUTH_BOOL=false
+        ;;
+    *)
+        echo "Error: CAMERA_FEEDS_REQUIRE_OAUTH must be true/false (or 1/0, yes/no, on/off)"
+        exit 1
+        ;;
+esac
+
+CAMERA_ROUTES_BLOCK=$(cat <<'EOF'
+    # Serve go2rtc's browser player and assets same-origin so WebRTC signaling,
+    # JS modules, and media endpoints stay on the authenticated host.
+    handle_path /camera/* {
+      reverse_proxy go2rtc:1984
+    }
+
+    # Legacy fallback: camera MJPEG requested directly on a printer subdomain.
+    handle /camera-stream {
+      rewrite * /api/stream.mjpeg?src={labels.0}
+      reverse_proxy go2rtc:1984
+    }
+EOF
+)
+
+if [ "$CAMERA_FEEDS_REQUIRE_OAUTH_BOOL" = true ]; then
+    CAMERA_ROUTES_PREAUTH="# camera routes are OAuth-protected (enabled via CAMERA_FEEDS_REQUIRE_OAUTH=true)"
+    CAMERA_ROUTES_POSTAUTH="$CAMERA_ROUTES_BLOCK"
+else
+    CAMERA_ROUTES_PREAUTH="$CAMERA_ROUTES_BLOCK"
+    CAMERA_ROUTES_POSTAUTH="# camera routes bypass OAuth (enabled via CAMERA_FEEDS_REQUIRE_OAUTH=false)"
+fi
+
 GLOBAL_OPTIONS_FILE=$(mktemp)
 
 {
@@ -77,6 +118,20 @@ rm -f "$GLOBAL_OPTIONS_FILE"
 
 ESCAPED_SITE_ADDRESSES=$(printf '%s' "$SITE_ADDRESSES" | sed 's/[&/]/\\&/g')
 sed -i "s|{{SITE_ADDRESSES}}|${ESCAPED_SITE_ADDRESSES}|g" /etc/caddy/Caddyfile
+
+TMP_CADDYFILE=$(mktemp)
+awk -v preauth="$CAMERA_ROUTES_PREAUTH" -v postauth="$CAMERA_ROUTES_POSTAUTH" '
+{
+    if ($0 ~ /\{\{CAMERA_ROUTES_PREAUTH\}\}/) {
+        print preauth
+    } else if ($0 ~ /\{\{CAMERA_ROUTES_POSTAUTH\}\}/) {
+        print postauth
+    } else {
+        print
+    }
+}
+' /etc/caddy/Caddyfile > "$TMP_CADDYFILE"
+mv "$TMP_CADDYFILE" /etc/caddy/Caddyfile
 
 # Start Caddy with provided arguments
 exec caddy run --config /etc/caddy/Caddyfile "$@"
