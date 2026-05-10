@@ -19,6 +19,7 @@ logging.basicConfig(
 PORT = int(os.environ.get("STATUS_APP_PORT", "8888"))
 TIMEOUT = float(os.environ.get("STATUS_APP_TIMEOUT", "10"))
 CAMERA_FEEDS_ENABLED = os.environ.get("STATUS_APP_CAMERA_FEEDS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+REFRESH_INTERVAL = int(os.environ.get("STATUS_APP_REFRESH_INTERVAL", "30"))
 
 session = requests.Session()
 
@@ -259,6 +260,7 @@ HTML_TEMPLATE = """<!doctype html>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PS:One 3D Printers</title>
+  {% if refresh_interval > 0 %}<meta http-equiv="refresh" content="{{ refresh_interval }}">{% endif %}
   <style>
     body {
       background-color: #fae6e6;
@@ -326,6 +328,7 @@ HTML_TEMPLATE = """<!doctype html>
             padding: 6px 10px;
             font-size: 0.8em;
             font-weight: 700;
+            font-family: inherit;
             letter-spacing: 0.04em;
             text-decoration: none;
             border-radius: 4px;
@@ -341,6 +344,55 @@ HTML_TEMPLATE = """<!doctype html>
             opacity: 0.55;
             cursor: not-allowed;
             pointer-events: none;
+        }
+        .camera-actions {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .camera-actions .camera-button {
+            margin-top: 0;
+        }
+        .inline-camera {
+            margin: 22px auto 10px;
+            width: min(96vw, 1200px);
+            background: rgba(0, 0, 0, 0.07);
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            box-sizing: border-box;
+        }
+        .inline-camera.hidden {
+            display: none;
+        }
+        .inline-camera-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .inline-camera-title {
+            margin: 0;
+            font-size: 1rem;
+            text-align: left;
+        }
+        .inline-camera-controls {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .inline-camera-frame {
+            display: block;
+            width: 100%;
+            border: 2px solid #444;
+            border-radius: 6px;
+            background: #000;
+            min-height: 280px;
+            aspect-ratio: 16 / 9;
         }
   </style>
 </head>
@@ -361,7 +413,9 @@ HTML_TEMPLATE = """<!doctype html>
     </div>
         <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
             {% if camera_feeds_enabled and printer_status.camera_stream %}
-                <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+                <div class="camera-actions">
+                  <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" data-camera-inline data-stream-name="{{ printer_status.camera_stream }}">CAMERA FEED</a>
+                </div>
             {% elif camera_feeds_enabled %}
                 <span class="camera-button disabled">CAMERA FEED</span>
                 {% endif %}
@@ -382,13 +436,65 @@ HTML_TEMPLATE = """<!doctype html>
         </div>
                 <a href="https://{{ printer_status.domain }}" class="printer-link"><span style="color: {{ printer_status.text_color }}; background: {{ printer_status.bg_color }};">{{ printer_status.domain }} ({{ printer_status.model_name }})</span></a>
                                 {% if camera_feeds_enabled and printer_status.camera_stream %}
-                                <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" target="_blank" rel="noopener noreferrer">CAMERA FEED</a>
+                                                                <div class="camera-actions">
+                                                                    <a href="/camera/stream.html?src={{ printer_status.camera_stream }}&mode=webrtc" class="camera-button" data-camera-inline data-stream-name="{{ printer_status.camera_stream }}">CAMERA FEED</a>
+                                                                </div>
                                 {% elif camera_feeds_enabled %}
                                 <span class="camera-button disabled">CAMERA FEED</span>
                                 {% endif %}
     </div>
     {% endfor %}
     </div>
+        <section id="inline-camera" class="inline-camera hidden" aria-live="polite">
+            <div class="inline-camera-header">
+                <h2 id="inline-camera-title" class="inline-camera-title">Camera feed</h2>
+                <div class="inline-camera-controls">
+                    <a id="inline-camera-popout" class="camera-button" href="#" target="_blank" rel="noopener noreferrer">POP OUT</a>
+                    <button id="inline-camera-close" type="button" class="camera-button">CLOSE</button>
+                </div>
+            </div>
+            <iframe
+                id="inline-camera-frame"
+                class="inline-camera-frame"
+                src="about:blank"
+                title="Camera feed viewer"
+                loading="lazy"
+                allow="autoplay; camera; microphone; fullscreen"
+            ></iframe>
+        </section>
+        <script>
+            const inlineCameraContainer = document.getElementById('inline-camera');
+            const inlineCameraFrame = document.getElementById('inline-camera-frame');
+            const inlineCameraTitle = document.getElementById('inline-camera-title');
+            const inlineCameraPopout = document.getElementById('inline-camera-popout');
+            const inlineCameraClose = document.getElementById('inline-camera-close');
+
+            document.addEventListener('click', (event) => {
+                const cameraLink = event.target.closest('[data-camera-inline]');
+                if (!cameraLink) {
+                    return;
+                }
+
+                event.preventDefault();
+                const href = cameraLink.getAttribute('href');
+                if (!href) {
+                    return;
+                }
+
+                const streamName = cameraLink.getAttribute('data-stream-name') || 'camera';
+                inlineCameraTitle.textContent = `${streamName} camera`;
+                inlineCameraFrame.src = href;
+                inlineCameraPopout.href = href;
+                inlineCameraContainer.classList.remove('hidden');
+                inlineCameraContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
+            inlineCameraClose.addEventListener('click', () => {
+                inlineCameraContainer.classList.add('hidden');
+                inlineCameraFrame.src = 'about:blank';
+                inlineCameraPopout.href = '#';
+            });
+        </script>
 </body>
 </html>
 """
@@ -464,6 +570,7 @@ def index():
         top_printer_statuses=top_printer_statuses,
         bottom_printer_statuses=bottom_printer_statuses,
         camera_feeds_enabled=CAMERA_FEEDS_ENABLED,
+        refresh_interval=REFRESH_INTERVAL,
         time_format=format_time,
     )
 
