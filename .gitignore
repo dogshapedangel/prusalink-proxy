@@ -7,6 +7,8 @@
 # Auto-generated files
 Caddyfile
 !Caddyfile.template
+go2rtc.yaml
+!go2rtc.yaml.template
 
 # Docker volumes and data
 caddy_data/

@@ -9,8 +9,8 @@ webrtc:
     - urls:
         - turn:10.10.2.65:3478?transport=udp
         - turn:10.10.2.65:3478?transport=tcp
-      username: printerturn
-      credential: 4zS4QfUzB8nNw2rT
+      username: ${TURN_USERNAME}
+      credential: ${TURN_PASSWORD}
 
 streams:
   pink:

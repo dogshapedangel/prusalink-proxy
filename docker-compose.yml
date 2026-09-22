@@ -44,7 +44,16 @@ services:
       - "8555:8555/tcp"
       - "8555:8555/udp"
     volumes:
-      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+      - ./go2rtc.yaml.template:/config/go2rtc.yaml.template:ro
+    env_file:
+      - ./.env
+    environment:
+      TURN_USERNAME: ${TURN_USERNAME:-printerturn}
+      TURN_PASSWORD: ${TURN_PASSWORD:?TURN_PASSWORD is required}
+    entrypoint: ["/bin/sh", "-c"]
+    # Render the template with real secrets from the env at container start; the rendered file never touches the host.
+    command:
+      - sed -e "s|\$${TURN_USERNAME}|$$TURN_USERNAME|g" -e "s|\$${TURN_PASSWORD}|$$TURN_PASSWORD|g" /config/go2rtc.yaml.template > /config/go2rtc.yaml && exec go2rtc -config /config/go2rtc.yaml
     networks:
       - prusalink-network
     restart: unless-stopped
@@ -75,7 +84,8 @@ services:
       context: ./printers-status
     container_name: printers-status
     volumes:
-      - ./go2rtc.yaml:/config/go2rtc.yaml:ro
+      # Only stream names are read here, so the unrendered template (no real TURN credential) is fine.
+      - ./go2rtc.yaml.template:/config/go2rtc.yaml:ro
     env_file:
       - ./.env
     environment:
