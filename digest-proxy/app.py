@@ -199,6 +199,21 @@ class DigestProxyHandler(BaseHTTPRequestHandler):
         }
         headers["Host"] = printer.upstream_host
 
+        # HTTPDigestAuth keeps its challenge per thread, and each connection gets its own thread.
+        auth = HTTPDigestAuth(printer.username, printer.password)
+        if body:
+            # Fetch the digest challenge with a cheap GET first so the upload is sent once, already
+            # authenticated. Firmware 7.x stops reading an unauthenticated body after its 401, which
+            # stalls the upload until the timeout.
+            try:
+                session.get(f"{printer.upstream}/api/version", auth=auth, timeout=TIMEOUT).close()
+            except requests.RequestException:
+                logging.warning(
+                    "Digest priming request failed for printer=%s host=%s; sending without preemptive auth",
+                    printer.name,
+                    printer.domain,
+                )
+
         try:
             response = session.request(
                 method=self.command,
@@ -208,7 +223,7 @@ class DigestProxyHandler(BaseHTTPRequestHandler):
                 allow_redirects=False,
                 stream=True,
                 timeout=TIMEOUT,
-                auth=HTTPDigestAuth(printer.username, printer.password),
+                auth=auth,
             )
         except requests.RequestException as exc:
             logging.exception(
