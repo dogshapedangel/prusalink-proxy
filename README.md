@@ -1,3 +1,3 @@
 allows OIDC login to a web portal that authenticates into prusalink 
 
-probably defunct when prusa releases the new version of prusalink
+this will be defunct once Prusa Connect Local is out of beta
