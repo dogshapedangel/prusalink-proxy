@@ -22,7 +22,7 @@
     }
 
     # Optional: when camera OAuth is disabled, camera routes are injected here
-    # so they bypass the OAuth and AD authorization checks below.
+    # so they bypass the OAuth checks below.
 {{CAMERA_ROUTES_PREAUTH}}
 
     # Send first-time browser requests straight into the OIDC flow instead of
@@ -38,15 +38,8 @@
       copy_headers X-Auth-Request-User X-Auth-Request-Email X-Auth-Request-Groups X-Forwarded-User X-Forwarded-Email
     }
 
-    # Authorize users against on-prem AD group membership.
-    # authz-ad returns 200 to allow, 403 to deny.
-    forward_auth authz-ad:8081 {
-      uri /authz
-      copy_headers X-Authz-Decision X-Authz-Reason
-    }
-
     # Optional: when camera OAuth is enabled, camera routes are injected here
-    # so they require OAuth and AD authorization before proxying to go2rtc.
+    # so they require OAuth before proxying to go2rtc.
 {{CAMERA_ROUTES_POSTAUTH}}
 
     # Route all authenticated traffic through the digest bridge so PrusaLink's UI
