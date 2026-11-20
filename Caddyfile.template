@@ -1,4 +1,4 @@
-# Caddy configuration for PrusaLink with Azure AD B2C OIDC
+# Caddy configuration for PrusaLink with OIDC (Authentik) login
 # Automatic certs use the Cloudflare DNS challenge.
 # THIS FILE IS AUTO-GENERATED - See Caddyfile.template and init.sh
 
@@ -14,7 +14,7 @@
     reverse_proxy printers-status:8888
   }
 
-  # OAuth2 authentication via Azure AD B2C
+  # OAuth2 authentication via OIDC (oauth2-proxy)
   route {
     # Expose oauth2-proxy's own endpoints (sign in, callback, logout)
     handle /oauth2/* {
